@@ -21,6 +21,14 @@
                     <p class="text-sm text-gray-500 mt-2">Вес: {{ $product->weight }} г</p>
                     <p class="text-3xl font-bold text-green-600 mt-4">{{ $product->price }} руб.</p>
 
+                    @if($product->category && $product->category->show_stock)
+                        @if($product->stock > 0)
+                            <p class="text-sm text-gray-500 mt-1">В наличии: {{ $product->stock }} шт.</p>
+                        @else
+                            <p class="text-sm text-red-500 mt-1">Нет в наличии</p>
+                        @endif
+                    @endif
+
                     @php $inCart = isset($cart[$product->id]); $qty = $cart[$product->id] ?? 0; @endphp
                     @if ($inCart)
                         <div class="flex items-center mt-4 gap-2">

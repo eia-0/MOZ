@@ -37,10 +37,8 @@
                 </div>
             @endif
 
-            {{-- Кнопка "Назад в каталог" --}}
             <a href="{{ route('home') }}" class="text-blue-500 hover:underline mb-4 inline-block">&larr; Назад в каталог</a>
 
-            {{-- Подкатегории и их товары --}}
             @forelse ($groupedProducts as $subCategoryName => $items)
                 <div class="mb-10">
                     <h3 class="text-xl font-bold mb-4">{{ $subCategoryName }}</h3>
@@ -71,6 +69,14 @@
                                         <p class="text-sm text-gray-500">{{ $product->weight }} г</p>
                                     @endif
                                     <p class="mt-2 text-2xl font-bold text-green-600">{{ $product->price }} ₽</p>
+
+                                    @if($product->category && $product->category->show_stock)
+                                        @if($product->stock > 0)
+                                            <p class="text-sm text-gray-500 mt-1">В наличии: {{ $product->stock }} шт.</p>
+                                        @else
+                                            <p class="text-sm text-red-500 mt-1">Нет в наличии</p>
+                                        @endif
+                                    @endif
 
                                     <div class="mt-auto pt-3">
                                         @php $inCart = isset($cart[$product->id]); $qty = $cart[$product->id] ?? 0; @endphp

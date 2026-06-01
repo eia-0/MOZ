@@ -18,7 +18,7 @@
                         <th class="p-4 text-left">Название</th>
                         <th class="p-4 text-left">Цена</th>
                         <th class="p-4 text-left">Вес (г)</th>
-                        <th class="p-4 text-left">Категория</th>
+                        <th class="p-4 text-left">Остаток</th>
                         <th class="p-4 text-left">Доступен</th>
                         <th class="p-4 text-left">Действия</th>
                     </tr>
@@ -36,14 +36,25 @@
                             <td class="p-4">{{ $product->name }}</td>
                             <td class="p-4">{{ $product->price }} руб.</td>
                             <td class="p-4">{{ $product->weight }} г</td>
-                            <td class="p-4">{{ $product->category->name ?? '—' }}</td>
+                            <td class="p-4">
+                                @if (is_null($product->stock))
+                                    <span class="w-3 h-3 rounded-full bg-green-500 inline-block" title="Неограничено"></span>
+                                @elseif ($product->stock == 0)
+                                    <span class="w-3 h-3 rounded-full bg-red-500 inline-block" title="Закончился"></span>
+                                @else
+                                    <span>{{ $product->stock }} шт.</span>
+                                @endif
+                            </td>
                             <td class="p-4">{{ $product->is_available ? 'Да' : 'Нет' }}</td>
                             <td class="p-4">
                                 <a href="{{ route('store.products.edit', $product) }}" class="text-blue-500 hover:underline">Ред.</a>
-                                <form action="{{ route('store.products.destroy', $product) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Удалить товар?')">
+                                <a href="{{ route('store.products.history', $product) }}" class="text-gray-500 hover:underline ml-2">История</a>
+                                <a href="{{ route('store.products.supply.form', $product) }}" class="text-green-500 hover:underline ml-2">Поставка</a>
+                                <a href="{{ route('store.products.writeoff.form', $product) }}" class="text-red-500 hover:underline ml-2">Списание</a>
+                                <form action="{{ route('store.products.destroy', $product) }}" method="POST" class="inline ml-2">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:underline">Удал.</button>
+                                    <button type="submit" class="text-red-500 hover:underline" onclick="return confirm('Удалить товар?')">Удал.</button>
                                 </form>
                             </td>
                         </tr>

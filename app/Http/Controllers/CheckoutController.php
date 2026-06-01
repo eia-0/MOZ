@@ -36,17 +36,14 @@ class CheckoutController extends Controller
         }
 
         $deliveryFee = $store->delivery_fee ?? 0;
-        // Бесплатная доставка при достижении порога
         if ($store->free_delivery_from && $total >= $store->free_delivery_from) {
             $deliveryFee = 0;
         }
 
-        $addresses = [];
-        if (Auth::check()) {
-            $addresses = Auth::user()->addresses()->latest()->get();
-        }
+        $addresses = Auth::check() ? Auth::user()->addresses()->latest()->get() : collect();
+        $lastAddress = $addresses->first();
 
-        return view('checkout.index', compact('cart', 'products', 'store', 'total', 'deliveryFee', 'addresses'));
+        return view('checkout.index', compact('cart', 'products', 'store', 'total', 'deliveryFee', 'addresses', 'lastAddress'));
     }
 
     public function store(Request $request)
@@ -112,8 +109,8 @@ class CheckoutController extends Controller
                 $deliveryLat = $validated['delivery_latitude'];
                 $deliveryLng = $validated['delivery_longitude'];
 
-                // Сохраняем адрес, если новый
-                if (empty($validated['address_id']) || !UserAddress::where('id', $validated['address_id'])->where('user_id', Auth::id())->exists()) {
+                // Сохраняем адрес только если не выбран существующий
+                if (empty($validated['address_id'])) {
                     UserAddress::create([
                         'user_id'   => Auth::id(),
                         'street'    => $validated['street'] ?? '',
@@ -132,7 +129,6 @@ class CheckoutController extends Controller
                 $deliveryInstructions = !empty($validated['leave_at_door']) ? 'Оставить у двери' : 'Передать в руки';
             }
 
-            // Расчёт стоимости доставки с учётом бесплатного порога
             $deliveryFee = ($validated['delivery_type'] === 'delivery') ? $store->delivery_fee : 0;
             if ($validated['delivery_type'] === 'delivery' && $store->free_delivery_from && $total >= $store->free_delivery_from) {
                 $deliveryFee = 0;
@@ -154,18 +150,32 @@ class CheckoutController extends Controller
             ]);
 
             foreach ($cart as $productId => $qty) {
+                $product = $products[$productId];
                 OrderItem::create([
                     'order_id'   => $order->id,
                     'product_id' => $productId,
                     'quantity'   => $qty,
-                    'price'      => $products[$productId]->price,
+                    'price'      => $product->price,
                 ]);
+
+                // Списание со склада
+                if (!is_null($product->stock)) {
+                    $newStock = max(0, $product->stock - $qty);
+                    $product->update(['stock' => $newStock]);
+                    $product->stockMovements()->create([
+                        'type'     => 'out',
+                        'quantity' => $qty,
+                        'comment'  => 'Продажа по заказу #' . $order->id,
+                        'order_id' => $order->id,
+                    ]);
+                }
             }
 
             DB::commit();
             session()->forget('cart');
 
-            return redirect()->route('customer.orders')
+            // ★ ВОТ ЗДЕСЬ ГЛАВНОЕ – редирект в каталог
+            return redirect()->route('home')
                 ->with('success', 'Заказ оформлен! Ожидайте подтверждения магазина.');
         } catch (\Exception $e) {
             DB::rollBack();

@@ -11,27 +11,27 @@ class Category extends Model
 
     protected $fillable = ['name', 'slug', 'parent_id'];
 
-    // Подкатегории
-    public function children()
-    {
-        return $this->hasMany(Category::class, 'parent_id');
-    }
-
-    // Родительская категория
+    /**
+     * Родительская категория.
+     */
     public function parent()
     {
         return $this->belongsTo(Category::class, 'parent_id');
     }
 
-    // Только корневые категории (без родителя)
+    /**
+     * Дочерние категории (подкатегории).
+     */
+    public function children()
+    {
+        return $this->hasMany(Category::class, 'parent_id');
+    }
+
+    /**
+     * Только корневые категории (без родителя).
+     */
     public function scopeRoot($query)
     {
         return $query->whereNull('parent_id');
-    }
-
-    // Товары этой категории
-    public function products()
-    {
-        return $this->hasMany(Product::class);
     }
 }

@@ -5,78 +5,52 @@ namespace App\Http\Controllers\Store;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-    /**
-     * Список категорий (сгруппированный: родительские → подкатегории).
-     */
     public function index()
     {
-        $rootCategories = Category::root()->with('children')->get();
-        return view('store.categories.index', compact('rootCategories'));
+        $categories = Category::with('parent')->paginate(20);
+        return view('store.categories.index', compact('categories'));
     }
 
-    /**
-     * Форма создания категории.
-     */
     public function create()
     {
-        // Все родительские категории, чтобы можно было выбрать родителя (для подкатегории)
-        $rootCategories = Category::root()->get();
-        return view('store.categories.create', compact('rootCategories'));
+        $parents = Category::root()->get();
+        return view('store.categories.create', compact('parents'));
     }
 
-    /**
-     * Сохранение новой категории.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
+            'slug'      => 'required|string|max:255|unique:categories,slug',
             'parent_id' => 'nullable|exists:categories,id',
         ]);
-
-        $validated['slug'] = Str::slug($validated['name']);
-
         Category::create($validated);
-
-        return redirect()->route('store.categories.index')
-            ->with('success', 'Категория добавлена');
+        return redirect()->route('store.categories.index')->with('success', 'Категория создана');
     }
 
-    /**
-     * Форма редактирования категории.
-     */
     public function edit(Category $category)
     {
-        // Нельзя выбрать себя или своих потомков в качестве родителя (просто исключим текущую)
-        $rootCategories = Category::root()->where('id', '!=', $category->id)->get();
-        return view('store.categories.edit', compact('category', 'rootCategories'));
+        $parents = Category::root()->where('id', '!=', $category->id)->get();
+        return view('store.categories.edit', compact('category', 'parents'));
     }
 
-    /**
-     * Обновление категории.
-     */
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:categories,id|not_in:' . $category->id,
+            'slug'      => 'required|string|max:255|unique:categories,slug,' . $category->id,
+            'parent_id' => 'nullable|exists:categories,id',
         ]);
-
-        $validated['slug'] = Str::slug($validated['name']);
-
+        if (!empty($validated['parent_id']) && $validated['parent_id'] == $category->id) {
+            return back()->with('error', 'Нельзя назначить категорию родителем самой себя');
+        }
         $category->update($validated);
-
-        return redirect()->route('store.categories.index')
-            ->with('success', 'Категория обновлена');
+        return redirect()->route('store.categories.index')->with('success', 'Категория обновлена');
     }
 
-    /**
-     * Удаление категории.
-     */
     public function destroy(Category $category)
     {
         $category->delete();

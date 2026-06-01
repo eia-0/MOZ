@@ -18,54 +18,97 @@
                 </div>
             @endif
 
+            {{-- БЛОК СМЕНЫ СТАТУСА --}}
+            <div class="bg-white shadow rounded-lg p-6 mb-4">
+                <h3 class="font-semibold mb-2">Сменить статус</h3>
+                @php
+                    $transitions = [
+                        'new'       => ['accepted' => 'Принять', 'cancelled' => 'Отменить'],
+                        'accepted'  => ['preparing' => 'Готовится'],
+                        'preparing' => ['ready' => 'Готов'],
+                        'ready'     => $order->delivery_type === 'pickup'
+                                        ? ['delivered' => 'Выдан']
+                                        : ['waiting_courier' => 'Ожидает курьера'],
+                    ];
+                    $currentTransitions = $transitions[$order->status] ?? [];
+                    $currentLabel = $order->statusLabel();
+                @endphp
+
+                @if (!empty($currentTransitions))
+                    <form action="{{ route('store.orders.update-status', $order) }}" method="POST" class="flex flex-wrap items-center gap-3">
+                        @csrf @method('PATCH')
+                        <div class="flex items-center gap-2 text-sm font-medium">
+                            <span class="px-2 py-1 bg-gray-200 rounded">{{ $currentLabel }}</span>
+                            <span class="text-gray-500">→</span>
+                            <select name="status" class="border rounded p-2">
+                                @foreach ($currentTransitions as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded"
+                                onclick="this.disabled=true; this.form.submit();">
+                            Обновить
+                        </button>
+                    </form>
+                @else
+                    <p class="text-gray-500">Нет доступных действий. Текущий статус: <strong>{{ $currentLabel }}</strong></p>
+                @endif
+            </div>
+
+            {{-- СОСТАВ ЗАКАЗА --}}
+            @if($order->items->isNotEmpty())
+                <div class="bg-white shadow rounded-lg p-6 mb-4">
+                    <h3 class="font-semibold mb-3">Состав заказа</h3>
+                    <ul class="divide-y">
+                        @foreach($order->items as $item)
+                            <li class="py-2 flex justify-between">
+                                <div>
+                                    <span class="font-medium">{{ $item->product->name ?? 'Товар удалён' }}</span>
+                                    <span class="text-gray-500 text-sm"> × {{ $item->quantity }}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-gray-600">{{ $item->price }} руб./шт.</span><br>
+                                    <span class="font-bold">{{ $item->price * $item->quantity }} руб.</span>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- ИНФОРМАЦИЯ О КЛИЕНТЕ И КУРЬЕРЕ --}}
             <div class="bg-white shadow rounded-lg p-6 mb-4">
                 <p><strong>Клиент:</strong> {{ $order->customer->name }} ({{ $order->customer->phone ?? '—' }})</p>
+
+                {{-- Если курьер назначен – показываем его данные --}}
                 @if ($order->courier)
-                    <p><strong>Курьер:</strong> {{ $order->courier->name }} ({{ $order->courier->phone ?? '—' }})</p>
+                    <p class="mt-2">
+                        <strong>Курьер:</strong> {{ $order->courier->name }} ({{ $order->courier->phone ?? '—' }})
+                        @if ($order->status === 'in_transit')
+                            <span class="text-sm text-green-600 font-medium"> – забрал заказ</span>
+                        @elseif ($order->status === 'courier_assigned')
+                            <span class="text-sm text-yellow-600 font-medium"> – назначен</span>
+                        @endif
+                    </p>
                 @endif
+
                 <p><strong>Тип:</strong> {{ $order->delivery_type === 'delivery' ? 'Доставка' : 'Самовывоз' }}</p>
                 @if ($order->delivery_address)
                     <p><strong>Адрес:</strong> {{ $order->delivery_address }}</p>
                     <p><strong>Инструкция:</strong> {{ $order->delivery_instructions ?? '—' }}</p>
                 @endif
-                <p><strong>Статус:</strong> <span id="order-status">{{ $order->statusLabel() }}</span></p>
+                <p><strong>Статус:</strong> <span id="order-status">{{ $currentLabel }}</span></p>
                 <p><strong>Сумма:</strong> {{ $order->total_price }} руб.</p>
             </div>
 
+            {{-- Карта --}}
             <div id="map" style="height: 400px;" class="mb-4 rounded shadow"></div>
 
-            <div class="bg-white shadow rounded-lg p-6 mb-4">
-                <h3 class="font-semibold mb-2">Сменить статус</h3>
-                @php
-                    $transitions = [
-                        'new' => ['accepted' => 'Принять', 'cancelled' => 'Отменить'],
-                        'accepted' => ['preparing' => 'Готовится'],
-                        'preparing' => ['ready' => 'Готов'],
-                        'ready' => $order->delivery_type === 'pickup'
-                                    ? ['delivered' => 'Выдан']
-                                    : ['waiting_courier' => 'Ожидает курьера'],
-                    ];
-                    $currentTransitions = $transitions[$order->status] ?? [];
-                @endphp
-                @if (!empty($currentTransitions))
-                    <form action="{{ route('store.orders.update-status', $order) }}" method="POST">
-                        @csrf @method('PATCH')
-                        <select name="status" class="border rounded p-2">
-                            @foreach ($currentTransitions as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded ml-2"
-                                onclick="this.disabled=true; this.form.submit();">Обновить</button>
-                    </form>
-                @else
-                    <p class="text-gray-500">Нет доступных действий.</p>
-                @endif
-            </div>
-
+            {{-- Удаление заказа --}}
             <div class="bg-white shadow rounded-lg p-6">
                 <form action="{{ route('store.orders.destroy', $order) }}" method="POST"
-                      onsubmit="return confirm('Вы уверены, что хотите удалить заказ #{{ $order->id }}? Это действие нельзя отменить.')">
+                      onsubmit="return confirm('Удалить заказ #{{ $order->id }}?')">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
@@ -77,6 +120,7 @@
         </div>
     </div>
 
+    {{-- Leaflet --}}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>

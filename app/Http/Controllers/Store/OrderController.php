@@ -38,6 +38,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $this->ensureStoreOwnership($order);
+        $order->load('items.product', 'courier', 'customer', 'store');
         return view('store.orders.show', compact('order'));
     }
 

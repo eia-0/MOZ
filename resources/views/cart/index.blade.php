@@ -1,14 +1,15 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Корзина
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-800">Корзина</h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-6 sm:py-10">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             @if (empty($cart))
-                <p class="text-gray-600">Ваша корзина пуста.</p>
+                <div class="text-center py-12">
+                    <p class="text-gray-500 text-lg">Ваша корзина пуста.</p>
+                    <a href="{{ route('home') }}" class="mt-4 inline-block text-blue-600 hover:underline">Перейти в каталог</a>
+                </div>
             @else
                 @php
                     $cartTotal = 0;
@@ -25,74 +26,75 @@
                 @endphp
 
                 @if ($cartTotal < $minOrder && $store)
-                    <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                        Минимальная сумма заказа в магазине «{{ $store->name }}»: {{ $minOrder }} руб.
-                        Сейчас в корзине: {{ $cartTotal }} руб.
+                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl mb-4 text-sm">
+                        Минимальная сумма заказа в «{{ $store->name }}»: {{ $minOrder }} ₽. Сейчас: {{ $cartTotal }} ₽.
                     </div>
                 @endif
-
                 @if ($freeFrom && $cartTotal < $freeFrom && $store)
-                    <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
-                        Бесплатная доставка при заказе от {{ $freeFrom }} руб.
-                        Сейчас в корзине: {{ $cartTotal }} руб.
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl mb-4 text-sm">
+                        Бесплатная доставка при заказе от {{ $freeFrom }} ₽. Сейчас: {{ $cartTotal }} ₽.
                     </div>
                 @endif
 
-                <table class="w-full bg-white shadow rounded-lg overflow-hidden">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="p-4 text-left">Товар</th>
-                            <th class="p-4 text-left">Цена</th>
-                            <th class="p-4 text-left">Кол-во</th>
-                            <th class="p-4 text-left">Сумма</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($cart as $productId => $quantity)
-                            @php $product = $products[$productId] ?? null @endphp
-                            @if ($product)
-                                <tr class="border-t">
-                                    <td class="p-4 flex items-center gap-3">
-                                        {{-- Миниатюра фото --}}
-                                        @if ($product->image)
-                                            <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
-                                                 class="w-12 h-12 object-cover rounded">
-                                        @else
-                                            <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">
-                                                Нет фото
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-4 text-left text-sm font-medium text-gray-600">Товар</th>
+                                <th class="p-4 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Цена</th>
+                                <th class="p-4 text-left text-sm font-medium text-gray-600">Кол-во</th>
+                                <th class="p-4 text-left text-sm font-medium text-gray-600 hidden sm:table-cell">Сумма</th>
+                                <th class="p-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($cart as $productId => $quantity)
+                                @php $product = $products[$productId] ?? null @endphp
+                                @if ($product)
+                                    <tr class="border-t">
+                                        <td class="p-4">
+                                            <div class="flex items-center gap-3">
+                                                @if ($product->image)
+                                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
+                                                         class="w-12 h-12 rounded-lg object-cover hidden sm:block">
+                                                @endif
+                                                <div>
+                                                    <p class="font-medium text-gray-800">{{ $product->name }}</p>
+                                                    <p class="text-sm text-gray-500 sm:hidden">{{ $product->price }} ₽</p>
+                                                </div>
                                             </div>
-                                        @endif
-                                        <span>{{ $product->name }}</span>
-                                    </td>
-                                    <td class="p-4">{{ $product->price }} руб.</td>
-                                    <td class="p-4">
-                                        <form action="{{ route('cart.update', $productId) }}" method="POST" class="flex items-center">
-                                            @csrf
-                                            @method('PATCH')
-                                            <input type="number" name="quantity" value="{{ $quantity }}" min="0"
-                                                   class="w-16 border rounded text-center"
-                                                   onchange="this.form.submit()">
-                                        </form>
-                                    </td>
-                                    <td class="p-4">{{ $product->price * $quantity }} руб.</td>
-                                    <td class="p-4">
-                                        <form action="{{ route('cart.remove', $productId) }}" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-500 hover:text-red-700 text-xl leading-none" title="Удалить">
-                                                &times;
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endif
-                        @endforeach
-                    </tbody>
-                </table>
+                                        </td>
+                                        <td class="p-4 hidden sm:table-cell">{{ $product->price }} ₽</td>
+                                        <td class="p-4">
+                                            <form action="{{ route('cart.update', $productId) }}" method="POST" class="flex items-center">
+                                                @csrf @method('PATCH')
+                                                <input type="number" name="quantity" value="{{ $quantity }}" min="0"
+                                                       class="w-14 border rounded-lg text-center text-sm py-1"
+                                                       onchange="this.form.submit()">
+                                            </form>
+                                        </td>
+                                        <td class="p-4 hidden sm:table-cell font-medium">{{ $product->price * $quantity }} ₽</td>
+                                        <td class="p-4">
+                                            <form action="{{ route('cart.remove', $productId) }}" method="POST">
+                                                @csrf @method('DELETE')
+                                                <button class="text-gray-400 hover:text-red-500 text-xl leading-none">&times;</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endif
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
-                <div class="mt-4 text-right">
-                    <a href="{{ route('checkout') }}" class="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600">
+                <div class="mt-6 flex flex-col sm:flex-row justify-between items-end gap-4">
+                    <div class="text-right">
+                        <p class="text-lg text-gray-700">Итого: <span class="font-bold text-2xl text-green-600">{{ $cartTotal }} ₽</span></p>
+                        @if ($store && $store->delivery_fee > 0 && !($freeFrom && $cartTotal >= $freeFrom))
+                            <p class="text-sm text-gray-500">+ доставка {{ $store->delivery_fee }} ₽</p>
+                        @endif
+                    </div>
+                    <a href="{{ route('checkout') }}" class="inline-block bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-xl transition shadow-md hover:shadow-lg">
                         Оформить заказ
                     </a>
                 </div>

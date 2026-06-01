@@ -1,16 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Оформление заказа
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-800">Оформление заказа</h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow rounded-lg p-6">
-
+    <div class="py-6 sm:py-10">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-2xl shadow-sm p-6 sm:p-8">
                 @if ($errors->any())
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
                         <ul>
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -19,111 +16,126 @@
                     </div>
                 @endif
                 @if (session('error'))
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
                         {{ session('error') }}
                     </div>
                 @endif
 
-                <h3 class="text-lg font-semibold mb-4">Ваш заказ из магазина «{{ $store->name }}»</h3>
-
-                <ul class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Ваш заказ из «{{ $store->name }}»</h3>
+                <ul class="mb-4">
                     @foreach ($cart as $productId => $qty)
                         @php $p = $products[$productId] @endphp
-                        <li class="flex justify-between py-2 border-b">
+                        <li class="flex justify-between py-2 border-b text-sm">
                             <span>{{ $p->name }} x {{ $qty }}</span>
-                            <span>{{ $p->price * $qty }} руб.</span>
+                            <span>{{ $p->price * $qty }} ₽</span>
                         </li>
                     @endforeach
                 </ul>
 
-                <p class="text-right text-lg font-bold">Товары: {{ $total }} руб.</p>
-                @if ($store->delivery_fee > 0)
-                    <p class="text-right text-gray-600">Доставка: {{ $deliveryFee }} руб.</p>
-                    <p class="text-right text-xl font-bold">К оплате: {{ $total + $deliveryFee }} руб.</p>
-                @endif
-                <p class="text-sm text-gray-500 mt-2">Минимальная сумма заказа: {{ $store->min_order }} руб.</p>
+                <div class="text-right text-sm">
+                    <p class="font-medium">Товары: {{ $total }} ₽</p>
+                    @if ($store->delivery_fee > 0)
+                        <p class="text-gray-600">Доставка: {{ $deliveryFee }} ₽</p>
+                        <p class="font-bold text-lg text-green-600">К оплате: {{ $total + $deliveryFee }} ₽</p>
+                    @endif
+                    <p class="text-xs text-gray-500 mt-1">Минимальный заказ: {{ $store->min_order }} ₽</p>
+                </div>
 
-                <form action="{{ route('checkout.store') }}" method="POST" class="mt-6">
+                <form id="checkout-form" action="{{ route('checkout.store') }}" method="POST" class="mt-6">
                     @csrf
                     <input type="hidden" name="store_id" value="{{ $store->id }}">
-                    <input type="hidden" name="delivery_latitude" id="delivery_latitude" value="{{ old('delivery_latitude') }}">
-                    <input type="hidden" name="delivery_longitude" id="delivery_longitude" value="{{ old('delivery_longitude') }}">
+                    <input type="hidden" name="delivery_latitude" id="delivery_latitude"
+                           value="{{ old('delivery_latitude', $lastAddress->latitude ?? '') }}">
+                    <input type="hidden" name="delivery_longitude" id="delivery_longitude"
+                           value="{{ old('delivery_longitude', $lastAddress->longitude ?? '') }}">
 
                     <div class="mb-4">
-                        <label class="block font-medium">Способ получения</label>
-                        <select name="delivery_type" id="delivery_type" class="w-full border rounded p-2 mt-1" required>
+                        <label class="block text-sm font-medium text-gray-700">Способ получения</label>
+                        <select name="delivery_type" id="delivery_type"
+                                class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200">
                             <option value="pickup" {{ old('delivery_type') == 'pickup' ? 'selected' : '' }}>Самовывоз</option>
                             <option value="delivery" {{ old('delivery_type') == 'delivery' ? 'selected' : '' }}>Доставка</option>
                         </select>
                     </div>
 
                     <div id="delivery_fields" style="display: {{ old('delivery_type') == 'delivery' ? 'block' : 'none' }};">
-                        {{-- Сохранённые адреса --}}
                         @if ($addresses->isNotEmpty())
-                        <div class="mb-4">
-                            <label class="block font-medium">Сохранённые адреса</label>
-                            <select id="saved_address" class="w-full border rounded p-2 mt-1">
-                                <option value="">-- Новый адрес --</option>
-                                @foreach ($addresses as $addr)
-                                    <option value="{{ $addr->id }}"
-                                        data-street="{{ $addr->street }}"
-                                        data-house="{{ $addr->house }}"
-                                        data-floor="{{ $addr->floor }}"
-                                        data-apartment="{{ $addr->apartment }}"
-                                        data-entrance="{{ $addr->entrance }}"
-                                        data-lat="{{ $addr->latitude }}"
-                                        data-lng="{{ $addr->longitude }}">
-                                        {{ $addr->full_address }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Сохранённые адреса</label>
+                                <select name="address_id" id="saved_address"
+                                        class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200">
+                                    <option value="">-- Новый адрес --</option>
+                                    @foreach ($addresses as $addr)
+                                        @php
+                                            $hasCoords = !is_null($addr->latitude) && !is_null($addr->longitude);
+                                        @endphp
+                                        <option value="{{ $addr->id }}"
+                                            data-street="{{ $addr->street }}"
+                                            data-house="{{ $addr->house }}"
+                                            data-floor="{{ $addr->floor }}"
+                                            data-apartment="{{ $addr->apartment }}"
+                                            data-entrance="{{ $addr->entrance }}"
+                                            data-lat="{{ $addr->latitude }}"
+                                            data-lng="{{ $addr->longitude }}"
+                                            {{ (old('address_id') == $addr->id || (!old('address_id') && $lastAddress && $lastAddress->id == $addr->id && $hasCoords)) ? 'selected' : '' }}
+                                            {{ !$hasCoords ? 'disabled title="Нет координат, выберите точку на карте"' : '' }}>
+                                            {{ $addr->full_address }} @if(!$hasCoords) (без координат) @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         @endif
 
-                        <p class="text-sm text-gray-600 mb-2">Кликните по карте, чтобы указать точку доставки. Адрес подставится автоматически.</p>
-                        <div id="checkout-map" style="height: 300px; width: 100%;" class="rounded mb-4"></div>
+                        <p class="text-sm text-gray-600 mb-2">
+                            <span id="map-hint">Кликните по карте, чтобы указать точку доставки.</span>
+                        </p>
+                        <div id="checkout-map" style="height: 300px; width: 100%;" class="rounded-xl mb-4"></div>
 
-                        {{-- Улица и дом в одной строке --}}
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label class="block font-medium">Улица</label>
-                                <input type="text" name="street" id="street" value="{{ old('street') }}" class="w-full border rounded p-2 mt-1" placeholder="Улица">
+                                <label class="block text-sm font-medium text-gray-700">Улица</label>
+                                <input type="text" name="street" id="street"
+                                       value="{{ old('street', $lastAddress->street ?? '') }}"
+                                       class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Улица">
                             </div>
                             <div>
-                                <label class="block font-medium">Номер дома</label>
-                                <input type="text" name="house" id="house" value="{{ old('house') }}" class="w-full border rounded p-2 mt-1" placeholder="Дом">
+                                <label class="block text-sm font-medium text-gray-700">Дом</label>
+                                <input type="text" name="house" id="house"
+                                       value="{{ old('house', $lastAddress->house ?? '') }}"
+                                       class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Дом">
                             </div>
                         </div>
-
-                        {{-- Подъезд, этаж, квартира/офис в одной строке --}}
                         <div class="grid grid-cols-3 gap-4 mb-4">
                             <div>
-                                <label class="block font-medium">Подъезд</label>
-                                <input type="text" name="entrance" id="entrance" value="{{ old('entrance') }}" class="w-full border rounded p-2 mt-1" placeholder="Подъезд">
+                                <label class="block text-sm font-medium text-gray-700">Подъезд</label>
+                                <input type="text" name="entrance" id="entrance"
+                                       value="{{ old('entrance', $lastAddress->entrance ?? '') }}"
+                                       class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Подъезд">
                             </div>
                             <div>
-                                <label class="block font-medium">Этаж</label>
-                                <input type="number" name="floor" id="floor" value="{{ old('floor') }}" class="w-full border rounded p-2 mt-1" placeholder="Этаж">
+                                <label class="block text-sm font-medium text-gray-700">Этаж</label>
+                                <input type="number" name="floor" id="floor"
+                                       value="{{ old('floor', $lastAddress->floor ?? '') }}"
+                                       class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Этаж">
                             </div>
                             <div>
-                                <label class="block font-medium">Квартира/Офис</label>
-                                <input type="text" name="apartment" id="apartment" value="{{ old('apartment') }}" class="w-full border rounded p-2 mt-1" placeholder="Квартира/офис">
+                                <label class="block text-sm font-medium text-gray-700">Квартира</label>
+                                <input type="text" name="apartment" id="apartment"
+                                       value="{{ old('apartment', $lastAddress->apartment ?? '') }}"
+                                       class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Квартира">
                             </div>
                         </div>
-
-                        {{-- Телефон с маской --}}
                         <div class="mb-4">
-                            <label class="block font-medium">Контактный телефон</label>
-                            <input type="tel" name="phone" id="phone" value="{{ old('phone', auth()->user()->phone) }}"
-                                   class="w-full border rounded p-2 mt-1" placeholder="+7 (___) ___-__-__"
-                                   pattern="\+7\s?\(\d{3}\)\s?\d{3}-\d{2}-\d{2}" title="Формат: +7 (999) 123-45-67">
+                            <label class="block text-sm font-medium text-gray-700">Телефон</label>
+                            <input type="tel" name="phone" id="phone"
+                                   value="{{ old('phone', auth()->user()->phone) }}"
+                                   class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+                                   placeholder="+7 (___) ___-__-__">
                         </div>
-
-                        {{-- Способ передачи --}}
                         <div class="mb-4">
-                            <label class="block font-medium mb-2">Способ передачи</label>
                             <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="leave_at_door" value="1" class="sr-only peer" {{ old('leave_at_door') ? 'checked' : '' }}>
+                                <input type="checkbox" name="leave_at_door" value="1" class="sr-only peer"
+                                       {{ old('leave_at_door') ? 'checked' : '' }}>
                                 <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                 <span class="ms-3 text-sm font-medium text-gray-700">Оставить у двери</span>
                             </label>
@@ -131,8 +143,8 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600"
-                            onclick="this.disabled=true; this.form.submit();">
+                    <button type="submit" id="submit-button"
+                            class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition shadow-md hover:shadow-lg mt-4">
                         Подтвердить заказ
                     </button>
                 </form>
@@ -143,44 +155,61 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Показать/скрыть поля доставки
-        var deliveryType = document.getElementById('delivery_type');
-        var deliveryFields = document.getElementById('delivery_fields');
+        const form = document.getElementById('checkout-form');
+        const deliveryType = document.getElementById('delivery_type');
+        const deliveryFields = document.getElementById('delivery_fields');
+        const latInput = document.getElementById('delivery_latitude');
+        const lngInput = document.getElementById('delivery_longitude');
+        const savedSelect = document.getElementById('saved_address');
+        const mapHint = document.getElementById('map-hint');
 
+        // Показать/скрыть поля доставки
         deliveryType.addEventListener('change', function() {
             deliveryFields.style.display = this.value === 'delivery' ? 'block' : 'none';
             if (this.value === 'delivery') {
-                setTimeout(function() { checkoutMap.invalidateSize(); }, 150);
+                setTimeout(() => checkoutMap.invalidateSize(), 150);
             }
         });
 
-        // Иконка для точки доставки (красный маркер)
-        var redIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-
-        // Карта с ограничением Озёрска
-        var checkoutMap = L.map('checkout-map', {
+        // Инициализация карты
+        const checkoutMap = L.map('checkout-map', {
             maxBounds: [[55.72, 60.65], [55.80, 60.75]],
             minZoom: 13,
             maxZoom: 17
         }).setView([55.763245, 60.707689], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(checkoutMap);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(checkoutMap);
 
-        var deliveryMarker = L.marker([55.763245, 60.707689], {icon: redIcon, draggable: true}).addTo(checkoutMap);
+        let deliveryMarker = L.marker([55.763245, 60.707689], { draggable: true }).addTo(checkoutMap);
+        let manualCoordsSet = false;
+
+        // Установить начальную позицию маркера, если есть координаты
+        function initMarker() {
+            const lat = latInput.value;
+            const lng = lngInput.value;
+            if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+                deliveryMarker.setLatLng([parseFloat(lat), parseFloat(lng)]);
+                checkoutMap.setView([parseFloat(lat), parseFloat(lng)], 16);
+                manualCoordsSet = true;
+            } else {
+                // Сбрасываем на центр Озёрска
+                deliveryMarker.setLatLng([55.763245, 60.707689]);
+                checkoutMap.setView([55.763245, 60.707689], 14);
+                manualCoordsSet = false;
+                if (deliveryType.value === 'delivery') {
+                    mapHint.innerHTML = 'Кликните по карте, чтобы указать точку доставки (обязательно)';
+                }
+            }
+        }
 
         function updateAddressFields(lat, lng, street, house) {
-            document.getElementById('delivery_latitude').value = lat;
-            document.getElementById('delivery_longitude').value = lng;
+            latInput.value = lat;
+            lngInput.value = lng;
             if (street !== undefined) document.getElementById('street').value = street;
             if (house !== undefined) document.getElementById('house').value = house;
+            // При любом изменении координат вручную сбрасываем выбор сохранённого адреса
+            if (savedSelect) savedSelect.value = '';
+            manualCoordsSet = true;
+            mapHint.innerHTML = 'Координаты установлены';
         }
 
         function geocode(lat, lng) {
@@ -188,8 +217,8 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.address) {
-                        var road = data.address.road || data.address.street || data.address.pedestrian || '';
-                        var house = data.address.house_number || '';
+                        const road = data.address.road || data.address.street || data.address.pedestrian || '';
+                        const house = data.address.house_number || '';
                         document.getElementById('street').value = road;
                         document.getElementById('house').value = house;
                         updateAddressFields(lat, lng, road, house);
@@ -204,57 +233,92 @@
         });
 
         deliveryMarker.on('dragend', function(e) {
-            var pos = deliveryMarker.getLatLng();
+            const pos = deliveryMarker.getLatLng();
             geocode(pos.lat, pos.lng);
         });
 
         // Обработчик выбора сохранённого адреса
-        var savedAddressSelect = document.getElementById('saved_address');
-        if (savedAddressSelect) {
-            savedAddressSelect.addEventListener('change', function() {
-                var selected = this.options[this.selectedIndex];
+        if (savedSelect) {
+            savedSelect.addEventListener('change', function() {
+                const selected = this.options[this.selectedIndex];
                 if (selected.value) {
-                    var lat = parseFloat(selected.dataset.lat);
-                    var lng = parseFloat(selected.dataset.lng);
-                    document.getElementById('street').value = selected.dataset.street;
-                    document.getElementById('house').value = selected.dataset.house;
-                    document.getElementById('floor').value = selected.dataset.floor || '';
-                    document.getElementById('apartment').value = selected.dataset.apartment || '';
-                    document.getElementById('entrance').value = selected.dataset.entrance || '';
-                    updateAddressFields(lat, lng, selected.dataset.street, selected.dataset.house);
-                    deliveryMarker.setLatLng([lat, lng]);
-                    checkoutMap.setView([lat, lng], 16);
+                    const lat = selected.dataset.lat;
+                    const lng = selected.dataset.lng;
+                    // Проверка, что координаты есть и не пустые
+                    if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+                        const latF = parseFloat(lat);
+                        const lngF = parseFloat(lng);
+                        document.getElementById('street').value = selected.dataset.street || '';
+                        document.getElementById('house').value = selected.dataset.house || '';
+                        document.getElementById('floor').value = selected.dataset.floor || '';
+                        document.getElementById('apartment').value = selected.dataset.apartment || '';
+                        document.getElementById('entrance').value = selected.dataset.entrance || '';
+                        updateAddressFields(latF, lngF, selected.dataset.street, selected.dataset.house);
+                        deliveryMarker.setLatLng([latF, lngF]);
+                        checkoutMap.setView([latF, lngF], 16);
+                    } else {
+                        // Адрес без координат – сбросить выбор и предупредить
+                        this.value = '';
+                        latInput.value = '';
+                        lngInput.value = '';
+                        mapHint.innerHTML = 'Этот адрес не содержит координат. Кликните по карте, чтобы указать точку.';
+                        alert('Этот адрес не содержит координат. Пожалуйста, укажите точку на карте вручную.');
+                        initMarker();
+                    }
                 } else {
-                    // Новый адрес – очищаем поля и сбрасываем карту
-                    document.getElementById('street').value = '';
-                    document.getElementById('house').value = '';
-                    document.getElementById('floor').value = '';
-                    document.getElementById('apartment').value = '';
-                    document.getElementById('entrance').value = '';
-                    checkoutMap.setView([55.763245, 60.707689], 14);
+                    // Новый адрес – очистить координаты
+                    latInput.value = '';
+                    lngInput.value = '';
+                    mapHint.innerHTML = 'Кликните по карте, чтобы указать точку доставки (обязательно)';
+                    manualCoordsSet = false;
                     deliveryMarker.setLatLng([55.763245, 60.707689]);
-                    updateAddressFields(55.763245, 60.707689);
+                    checkoutMap.setView([55.763245, 60.707689], 14);
+                }
+            });
+
+            // Сброс сохранённого адреса при ручном вводе полей
+            ['street', 'house', 'floor', 'apartment', 'entrance'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', function() {
+                        savedSelect.value = '';
+                        latInput.value = '';
+                        lngInput.value = '';
+                        manualCoordsSet = false;
+                        mapHint.innerHTML = 'Кликните по карте, чтобы указать точку доставки (обязательно)';
+                    });
                 }
             });
         }
 
+        // Проверка перед отправкой формы
+        form.addEventListener('submit', function(e) {
+            if (deliveryType.value === 'delivery') {
+                if (!latInput.value || !lngInput.value || isNaN(parseFloat(latInput.value)) || isNaN(parseFloat(lngInput.value))) {
+                    e.preventDefault();
+                    alert('Пожалуйста, укажите точку доставки на карте.');
+                    mapHint.innerHTML = 'Кликните по карте, чтобы указать точку доставки (обязательно)';
+                    return false;
+                }
+            }
+            // Блокируем кнопку, чтобы избежать двойной отправки
+            const btn = document.getElementById('submit-button');
+            btn.disabled = true;
+            btn.innerText = 'Отправка...';
+        });
+
         // Инициализация при загрузке
-        var initLat = document.getElementById('delivery_latitude').value;
-        var initLng = document.getElementById('delivery_longitude').value;
         if (deliveryType.value === 'delivery') {
             deliveryFields.style.display = 'block';
-            setTimeout(function() { checkoutMap.invalidateSize(); }, 150);
-            if (initLat && initLng) {
-                deliveryMarker.setLatLng([initLat, initLng]);
-                checkoutMap.setView([initLat, initLng], 16);
-            }
+            setTimeout(() => checkoutMap.invalidateSize(), 150);
+            initMarker();
         }
 
-        // Маска для телефона
-        var phoneInput = document.getElementById('phone');
+        // Маска телефона
+        const phoneInput = document.getElementById('phone');
         if (phoneInput) {
             phoneInput.addEventListener('input', function(e) {
-                var x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+                const x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
                 e.target.value = '+7' + (x[2] ? '(' + x[2] + ')' : '') + (x[3] ? ' ' + x[3] : '') + (x[4] ? '-' + x[4] : '') + (x[5] ? '-' + x[5] : '');
             });
         }

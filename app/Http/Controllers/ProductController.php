@@ -14,40 +14,29 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $storeId = $request->query('store_id');
+        $categoryId = $request->query('category_id');
+
         $store = $storeId ? Store::find($storeId) : Store::first();
 
-        $categoryId = $request->query('category_id');
-        $productsQuery = Product::where('is_available', true);
+        // Только корневые категории для фильтра
+        $categories = Category::root()->get();
 
-        if ($store) {
-            $productsQuery->where('store_id', $store->id);
-        }
+        $products = Product::when($store, fn($q) => $q->where('store_id', $store->id))
+            ->when($categoryId, function ($q) use ($categoryId) {
+                $category = Category::find($categoryId);
+                if ($category) {
+                    // Включаем товары из этой категории и всех её дочерних
+                    $childIds = $category->children()->pluck('id');
+                    $ids = $childIds->push($category->id);
+                    $q->whereIn('category_id', $ids);
+                } else {
+                    $q->where('category_id', $categoryId);
+                }
+            })
+            ->with('store', 'category')
+            ->where('is_available', true)
+            ->paginate(12);
 
-        // Если выбрана категория – покажем страницу категории (подкатегории + товары)
-        if ($categoryId) {
-            $category = Category::with('children')->findOrFail($categoryId);
-            $subCategoryIds = $category->children()->pluck('id')->push($category->id);
-            $products = $productsQuery->whereIn('category_id', $subCategoryIds)->get();
-
-            // Группируем товары по подкатегориям
-            $groupedProducts = [];
-            foreach ($category->children as $child) {
-                $groupedProducts[$child->name] = $products->where('category_id', $child->id);
-            }
-            // Товары, которые напрямую в родительской категории (без подкатегории)
-            $directProducts = $products->where('category_id', $category->id);
-            if ($directProducts->isNotEmpty()) {
-                $groupedProducts[$category->name] = $directProducts;
-            }
-
-            $cart = session()->get('cart', []);
-            $isOpen = $store ? $store->isOpenNow() : false;
-
-            return view('products.category', compact('category', 'groupedProducts', 'store', 'isOpen', 'cart'));
-        }
-
-        // Обычная главная страница
-        $products = $productsQuery->with('store', 'category')->paginate(12);
         $cart = session()->get('cart', []);
 
         $activeOrders = collect();
@@ -56,11 +45,6 @@ class ProductController extends Controller
                 ->whereNotIn('status', ['delivered', 'cancelled'])
                 ->latest()
                 ->get();
-        }
-
-        $categories = collect();
-        if ($store) {
-            $categories = Category::root()->get();
         }
 
         $isOpen = $store ? $store->isOpenNow() : false;

@@ -1,88 +1,55 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Заказы на доставку
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-800">Заказы на доставку</h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
+    <div class="py-6 sm:py-10">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             @if (session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
-                    {{ session('success') }}
-                </div>
+                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm">{{ session('success') }}</div>
             @endif
             @if (session('error'))
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-                    {{ session('error') }}
-                </div>
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">{{ session('error') }}</div>
             @endif
 
-            <h3 class="text-lg font-semibold mb-3">Активные</h3>
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">Активные</h3>
             @forelse ($activeOrders as $order)
                 @php
                     $isFree = ($order->status === 'waiting_courier' && is_null($order->courier_id));
                     $isMine = ($order->courier_id === auth()->id());
-                    $cardColor = $isFree ? 'border-l-4 border-green-500 bg-green-50' : ($isMine ? 'border-l-4 border-yellow-500 bg-yellow-50' : '');
+                    $cardClass = $isFree ? 'border-l-green-500 bg-green-50' : ($isMine ? 'border-l-yellow-500 bg-yellow-50' : '');
                 @endphp
-                <div class="bg-white shadow rounded-lg p-4 mb-2 {{ $cardColor }}">
+                <div class="bg-white rounded-xl shadow-sm border-l-4 {{ $cardClass }} p-4 mb-3">
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
-                            <p class="font-semibold">Заказ #{{ $order->id }}</p>
-                            <p class="text-sm text-gray-600">
-                                <strong>Адрес доставки:</strong> {{ $order->delivery_address }}<br>
-                                <strong>Тел.:</strong> {{ $order->customer->phone ?? '—' }}
-                            </p>
-                            <div class="mt-1 text-sm text-gray-600">
-                                <span class="font-medium">Ресторан: {{ $order->store->name }}</span>
-                                @if ($order->store->phone)
-                                    , 📞 {{ $order->store->phone }}
-                                @endif
-                                @if ($order->store->address)
-                                    , {{ $order->store->address }}
-                                @endif
+                            <div class="flex items-center justify-between">
+                                <p class="font-semibold text-gray-800">Заказ #{{ $order->id }}</p>
+                                <a href="{{ route('courier.orders.show', $order) }}" class="text-blue-600 hover:underline text-sm ml-4">Подробнее</a>
                             </div>
-                            <p class="text-sm mt-1">
-                                Статус: {{ $order->statusLabel() }}
-                                @if ($isFree)
-                                    <span class="text-green-600 font-bold">(свободный)</span>
-                                @endif
-                            </p>
+                            <p class="text-sm text-gray-600">{{ $order->delivery_address }}</p>
+                            <p class="text-sm text-gray-700">Статус: {{ $order->statusLabel() }} @if($isFree) <span class="text-green-600 font-medium">(свободный)</span> @endif</p>
+                            @if($order->customer->phone)
+                                <p class="text-xs text-gray-500">Тел. клиента: {{ $order->customer->phone }}</p>
+                            @endif
                         </div>
                         <div class="flex items-center gap-2 ml-4">
-                            <a href="{{ route('courier.orders.show', $order) }}" class="text-blue-500 hover:underline text-sm" title="Карта">
-                                📍 Карта
-                            </a>
                             @if ($isFree)
                                 <form action="{{ route('courier.orders.accept', $order) }}" method="POST">
-                                    @csrf
-                                    @method('PATCH')
-                                    <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
-                                            onclick="this.disabled=true; this.form.submit();">
-                                        Принять заказ
-                                    </button>
+                                    @csrf @method('PATCH')
+                                    <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">Принять</button>
                                 </form>
                             @elseif ($isMine)
                                 @if ($order->status === 'courier_assigned')
                                     <form action="{{ route('courier.orders.update-status', $order) }}" method="POST">
-                                        @csrf
-                                        @method('PATCH')
+                                        @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="in_transit">
-                                        <button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
-                                                onclick="this.disabled=true; this.form.submit();">
-                                            🚀 Я забрал
-                                        </button>
+                                        <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">🚀 Я забрал</button>
                                     </form>
                                 @elseif ($order->status === 'in_transit')
                                     <form action="{{ route('courier.orders.update-status', $order) }}" method="POST">
-                                        @csrf
-                                        @method('PATCH')
+                                        @csrf @method('PATCH')
                                         <input type="hidden" name="status" value="delivered">
-                                        <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
-                                                onclick="this.disabled=true; this.form.submit();">
-                                            ✅ Доставил
-                                        </button>
+                                        <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition">✅ Доставил</button>
                                     </form>
                                 @endif
                             @endif
@@ -90,23 +57,25 @@
                     </div>
                 </div>
             @empty
-                <p class="text-gray-500 mb-6">Нет активных заказов.</p>
+                <p class="text-gray-500 text-sm">Нет активных заказов.</p>
             @endforelse
 
             @if ($completedOrders->isNotEmpty())
-                <h3 class="text-lg font-semibold mt-8 mb-3">Завершённые</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mt-8 mb-3">Завершённые</h3>
                 @foreach ($completedOrders as $order)
-                    <div class="bg-white shadow rounded-lg p-4 mb-2 flex justify-between items-center border-l-4 border-red-500 bg-red-50">
-                        <div>
-                            <p class="font-semibold">Заказ #{{ $order->id }}</p>
-                            <p class="text-sm text-gray-600">
-                                {{ $order->delivery_address }}<br>
-                                <strong>Тел.:</strong> {{ $order->customer->phone ?? '—' }}
-                            </p>
-                            <p class="text-sm">Статус: {{ $order->statusLabel() }}</p>
-                        </div>
-                        <div>
-                            <a href="{{ route('courier.orders.show', $order) }}" class="text-blue-500 hover:underline text-sm">📍 Карта</a>
+                    <div class="bg-white rounded-xl shadow-sm border-l-4 border-l-red-500 bg-red-50 p-4 mb-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-semibold text-gray-800">Заказ #{{ $order->id }}</p>
+                                    <a href="{{ route('courier.orders.show', $order) }}" class="text-blue-600 hover:underline text-sm ml-4">Подробнее</a>
+                                </div>
+                                <p class="text-sm text-gray-600">{{ $order->delivery_address }}</p>
+                                <p class="text-sm text-gray-700">Статус: {{ $order->statusLabel() }}</p>
+                                @if($order->customer->phone)
+                                    <p class="text-xs text-gray-500">Тел. клиента: {{ $order->customer->phone }}</p>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 @endforeach

@@ -15,7 +15,7 @@
                 <p><strong>Статус:</strong> <span id="order-status">{{ $order->statusLabel() }}</span></p>
             </div>
 
-            <div id="map" style="height: 400px;" class="mb-4"></div>
+            <div id="map" style="height: 400px;" class="mb-4 rounded shadow"></div>
 
             <div class="bg-white shadow rounded-lg p-6">
                 @if ($order->courier_id === auth()->id())
@@ -52,6 +52,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Цветные иконки
         const greenIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
@@ -71,20 +72,25 @@
         var map = L.map('map').setView([55.763245, 60.707689], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+        // Магазин – зеленый маркер
         var storeLat = {{ $order->store->latitude ?? 55.763245 }};
         var storeLng = {{ $order->store->longitude ?? 60.707689 }};
         L.marker([storeLat, storeLng], {icon: greenIcon}).addTo(map).bindPopup('Магазин: {{ $order->store->name }}');
 
+        // Адрес доставки – красный маркер
         @if ($order->delivery_latitude && $order->delivery_longitude)
             L.marker([{{ $order->delivery_latitude }}, {{ $order->delivery_longitude }}], {icon: redIcon})
                 .addTo(map).bindPopup('{{ $order->delivery_address ?? "Доставка" }}');
         @else
+            // Если координаты не заданы, показать точку по умолчанию (Площадь Ленина)
             L.marker([55.763245, 60.707689], {icon: redIcon}).addTo(map).bindPopup('Предполагаемая доставка');
         @endif
 
-        // Геолокация курьера (иконка blue)
+        // Геолокация курьера (синий маркер)
         @if($order->courier_id === auth()->id() && in_array($order->status, ['courier_assigned','in_transit']))
         if (navigator.geolocation) {
+            var courierMarker = L.marker([0,0], {icon: blueIcon}).addTo(map); // изначально скрыт
+            courierMarker.remove();
             navigator.geolocation.watchPosition(function(pos) {
                 axios.post('{{ route("courier.location.update") }}', {
                     order_id: {{ $order->id }},
@@ -92,9 +98,10 @@
                     longitude: pos.coords.longitude,
                     _token: '{{ csrf_token() }}'
                 });
-                // Показать курьера на карте (если ещё не отображается, можно добавить маркер)
-                if (typeof courierMarker === 'undefined') {
-                    courierMarker = L.marker([pos.coords.latitude, pos.coords.longitude], {icon: blueIcon}).addTo(map);
+                // Показать или переместить маркер курьера
+                if (!map.hasLayer(courierMarker)) {
+                    courierMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                    courierMarker.addTo(map);
                 } else {
                     courierMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
                 }
