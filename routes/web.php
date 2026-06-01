@@ -8,6 +8,7 @@ use App\Http\Controllers\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\Store\DashboardController;
 use App\Http\Controllers\Store\ProductController as StoreProductController;
 use App\Http\Controllers\Store\OrderController as StoreOrderController;
+use App\Http\Controllers\Store\CategoryController as StoreCategoryController;
 use App\Http\Controllers\Courier\OrderController as CourierOrderController;
 use App\Http\Controllers\Courier\LocationController;
 use Illuminate\Support\Facades\Route;
@@ -32,20 +33,15 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    // Подтверждение email
     Route::get('verify-email', [App\Http\Controllers\Auth\EmailVerificationPromptController::class, '__invoke'])->name('verification.notice');
     Route::get('verify-email/{id}/{hash}', [App\Http\Controllers\Auth\VerifyEmailController::class, '__invoke'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('email/verification-notification', [App\Http\Controllers\Auth\EmailVerificationNotificationController::class, 'store'])->middleware('throttle:6,1')->name('verification.send');
-    // Подтверждение пароля
     Route::get('confirm-password', [App\Http\Controllers\Auth\ConfirmablePasswordController::class, 'show'])->name('password.confirm');
     Route::post('confirm-password', [App\Http\Controllers\Auth\ConfirmablePasswordController::class, 'store']);
-    // Обновление пароля (важный маршрут)
     Route::put('/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('password.update');
-    // Профиль
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
-    // Выход
     Route::post('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
 
@@ -73,7 +69,6 @@ Route::patch('/cart/update/{item}', [CartController::class, 'update'])->name('ca
 Route::delete('/cart/remove/{item}', [CartController::class, 'remove'])->name('cart.remove');
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 
-// Оформление заказа (только для авторизованных)
 Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
@@ -85,6 +80,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'role:store'])->prefix('store')->name('store.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', StoreProductController::class);
+    Route::resource('categories', StoreCategoryController::class);
     Route::get('/orders', [StoreOrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [StoreOrderController::class, 'show'])->name('orders.show');
     Route::patch('/orders/{order}/status', [StoreOrderController::class, 'updateStatus'])->name('orders.update-status');

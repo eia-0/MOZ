@@ -26,6 +26,9 @@
                             <x-nav-link :href="route('store.products.index')" :active="request()->routeIs('store.products.*')">
                                 Товары
                             </x-nav-link>
+                            <x-nav-link :href="route('store.categories.index')" :active="request()->routeIs('store.categories.*')">
+                                Категории
+                            </x-nav-link>
                             <x-nav-link :href="route('store.orders')" :active="request()->routeIs('store.orders.*')">
                                 Заказы
                             </x-nav-link>
@@ -33,12 +36,10 @@
                                 Настройки
                             </x-nav-link>
                         @elseif(auth()->user()->isCourier())
-                            {{-- Только заказы, никакого каталога и корзины --}}
                             <x-nav-link :href="route('courier.orders')" :active="request()->routeIs('courier.*')">
                                 Заказы на доставку
                             </x-nav-link>
                         @elseif(auth()->user()->isCustomer())
-                            {{-- Покупатель: Корзина и Мои заказы --}}
                             <x-nav-link :href="route('cart.index')" :active="request()->routeIs('cart.index')">
                                 🛒 Корзина
                                 @php $cartCount = array_sum(session('cart', [])); @endphp
@@ -54,7 +55,6 @@
                         @endif
                     @endauth
 
-                    {{-- Для гостей — только корзина (каталог уже виден) --}}
                     @guest
                         <x-nav-link :href="route('cart.index')" :active="request()->routeIs('cart.index')">
                             🛒 Корзина
@@ -134,6 +134,9 @@
                     </x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('store.products.index')" :active="request()->routeIs('store.products.*')">
                         Товары
+                    </x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('store.categories.index')" :active="request()->routeIs('store.categories.*')">
+                        Категории
                     </x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('store.orders')" :active="request()->routeIs('store.orders.*')">
                         Заказы

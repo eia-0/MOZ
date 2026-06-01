@@ -1,142 +1,61 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Каталог
+            Мои товары
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (request('store_id'))
-                <p class="text-gray-600 mb-4">Показаны товары выбранного магазина</p>
-            @endif
+            <a href="{{ route('store.products.create') }}" class="bg-green-500 text-white px-4 py-2 rounded mb-4 inline-block hover:bg-green-600">
+                + Добавить товар
+            </a>
 
-            {{-- Виджет активных заказов для покупателя --}}
-            @auth
-                @if(auth()->user()->isCustomer() && $activeOrders->isNotEmpty())
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold mb-3">Мои активные заказы</h3>
-                        <div class="space-y-3">
-                            @foreach ($activeOrders as $order)
-                                @php
-                                    $statusColors = [
-                                        'new'               => 'border-green-500 bg-green-50',
-                                        'accepted'          => 'border-blue-500 bg-blue-50',
-                                        'preparing'         => 'border-yellow-500 bg-yellow-50',
-                                        'ready'             => 'border-indigo-500 bg-indigo-50',
-                                        'waiting_courier'   => 'border-orange-500 bg-orange-50',
-                                        'courier_assigned'  => 'border-purple-500 bg-purple-50',
-                                        'in_transit'        => 'border-red-500 bg-red-50',
-                                    ];
-                                    $borderColor = $statusColors[$order->status] ?? 'border-gray-300 bg-gray-50';
-                                @endphp
-                                <div class="bg-white shadow rounded-lg border-l-4 {{ $borderColor }} p-4 flex justify-between items-center">
-                                    <div>
-                                        <p class="font-semibold">
-                                            Заказ #{{ $order->id }} в «{{ $order->store->name }}»
-                                            @if ($order->store->phone)
-                                                <span class="text-sm text-gray-500">({{ $order->store->phone }})</span>
-                                            @endif
-                                        </p>
-                                        <p class="text-sm text-gray-600">
-                                            Статус: <span class="font-medium">{{ $order->statusLabel() }}</span>
-                                            — {{ $order->total_price }} руб.
-                                        </p>
-                                        @if ($order->courier)
-                                            <p class="text-xs text-gray-500">
-                                                Курьер: {{ $order->courier->name }}
-                                                @if ($order->courier->phone)
-                                                    <br>Номер курьера: {{ $order->courier->phone }}
-                                                @endif
-                                            </p>
-                                        @endif
-                                    </div>
-                                    <a href="{{ route('customer.orders.show', $order) }}" class="text-blue-500 hover:underline text-sm">
-                                        Подробнее
-                                    </a>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-            @endauth
-
-            {{-- Сетка товаров --}}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                @foreach ($products as $product)
-                    <div class="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
-                        <a href="{{ route('product.show', $product) }}" class="block h-48 overflow-hidden">
-                            @if ($product->image)
-                                <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}"
-                                     class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
-                            @else
-                                <div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
-                                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            @endif
-                        </a>
-
-                        <div class="p-4 flex flex-col flex-grow">
-                            <h3 class="font-semibold text-lg mb-1 line-clamp-2">
-                                <a href="{{ route('product.show', $product) }}" class="hover:text-blue-600 transition-colors">
-                                    {{ $product->name }}
-                                </a>
-                            </h3>
-                            @if($product->weight)
-                                <p class="text-sm text-gray-500">{{ $product->weight }} г</p>
-                            @endif
-                            <p class="mt-2 text-2xl font-bold text-green-600">{{ $product->price }} ₽</p>
-
-                            <div class="mt-auto pt-3">
-                                @php $inCart = isset($cart[$product->id]); $qty = $cart[$product->id] ?? 0; @endphp
-                                @if ($inCart)
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
-                                            <form action="{{ route('cart.update', $product->id) }}" method="POST">
-                                                @csrf
-                                                @method('PATCH')
-                                                <input type="hidden" name="quantity" value="{{ $qty - 1 }}">
-                                                <button type="submit"
-                                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors">
-                                                    −
-                                                </button>
-                                            </form>
-                                            <span class="font-semibold text-lg w-6 text-center">{{ $qty }}</span>
-                                            <form action="{{ route('cart.add', $product) }}" method="POST">
-                                                @csrf
-                                                <button type="submit"
-                                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors">
-                                                    +
-                                                </button>
-                                            </form>
-                                        </div>
-                                        <form action="{{ route('cart.remove', $product->id) }}" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors text-2xl leading-none" title="Удалить">
-                                                &times;
-                                            </button>
-                                        </form>
-                                    </div>
+            <table class="w-full bg-white shadow rounded-lg overflow-hidden">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-4 text-left">Фото</th>
+                        <th class="p-4 text-left">Название</th>
+                        <th class="p-4 text-left">Цена</th>
+                        <th class="p-4 text-left">Вес (г)</th>
+                        <th class="p-4 text-left">Категория</th>
+                        <th class="p-4 text-left">Доступен</th>
+                        <th class="p-4 text-left">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($products as $product)
+                        <tr class="border-t">
+                            <td class="p-4">
+                                @if ($product->image)
+                                    <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}" class="w-16 h-16 object-cover rounded">
                                 @else
-                                    <form action="{{ route('cart.add', $product) }}" method="POST">
-                                        @csrf
-                                        <button type="submit"
-                                                class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors shadow-sm hover:shadow-md">
-                                            В корзину
-                                        </button>
-                                    </form>
+                                    <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">Нет фото</div>
                                 @endif
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+                            </td>
+                            <td class="p-4">{{ $product->name }}</td>
+                            <td class="p-4">{{ $product->price }} руб.</td>
+                            <td class="p-4">{{ $product->weight }} г</td>
+                            <td class="p-4">{{ $product->category->name ?? '—' }}</td>
+                            <td class="p-4">{{ $product->is_available ? 'Да' : 'Нет' }}</td>
+                            <td class="p-4">
+                                <a href="{{ route('store.products.edit', $product) }}" class="text-blue-500 hover:underline">Ред.</a>
+                                <form action="{{ route('store.products.destroy', $product) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Удалить товар?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-500 hover:underline">Удал.</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="p-4 text-center text-gray-500">Товаров пока нет. Нажмите «Добавить товар», чтобы создать первый.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
 
-            <div class="mt-6">
+            <div class="mt-4">
                 {{ $products->links() }}
             </div>
         </div>
