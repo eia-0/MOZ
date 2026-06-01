@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Policies;
+
+use App\Models\Product;
+use App\Models\User;
+
+class ProductPolicy
+{
+    /**
+     * Может ли пользователь редактировать/удалять товар?
+     */
+    public function update(User $user, Product $product): bool
+    {
+        return $user->store && $user->store->id === $product->store_id;
+    }
+
+    public function delete(User $user, Product $product): bool
+    {
+        return $this->update($user, $product);
+    }
+}
